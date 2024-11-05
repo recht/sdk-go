@@ -25,13 +25,16 @@ package opentelemetry
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"reflect"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
 
 	"go.temporal.io/sdk/interceptor"
@@ -260,6 +263,11 @@ type tracerSpan struct {
 func (t *tracerSpan) Finish(opts *interceptor.TracerFinishSpanOptions) {
 	if opts.Error != nil {
 		t.SetStatus(codes.Error, opts.Error.Error())
+		t.AddEvent(semconv.ExceptionEventName, trace.WithAttributes(
+			semconv.ExceptionTypeKey.String(reflect.TypeOf(errors.Unwrap(opts.Error)).String()),
+			semconv.ExceptionMessageKey.String(opts.Error.Error()),
+			semconv.ExceptionStacktraceKey.String(fmt.Sprintf("%+v", opts.Error)),
+		))
 	}
 	t.End()
 }
